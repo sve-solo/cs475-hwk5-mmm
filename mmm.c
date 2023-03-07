@@ -5,12 +5,66 @@
 #include <stdio.h>
 #include "mmm.h"
 
+/*
+* Global variables
+*/
+double **matrixA;
+double **matrixB;
+double **matrixC;
+double **partialMatrix;
+
 /**
  * Allocate and initialize the matrices on the heap. Populate
  * the input matrices with random integers from 0 to 99
  */
+
 void mmm_init() {
 	// TODO
+	//printf("size: %d\n", size);
+	
+	//malloc input matrix of pointers to doubles
+    matrixA = (double**) malloc(sizeof(double*) * size);
+
+	//malloc input matrix of pointers to doubles
+    matrixB = (double**) malloc(sizeof(double*) * size);
+
+	//malloc output matrix of pointers to doubles
+    matrixC = (double**) malloc(sizeof(double*) * size);
+	
+	//iterate through each row and malloc matrices of doubles
+	for(int i = 0; i < size; i++){
+		matrixA[i] = (double*) malloc(sizeof(double) * size);
+		matrixB[i] = (double*) malloc(sizeof(double) * size);
+		matrixC[i] = (double*) malloc(sizeof(double) * size);
+	}
+
+	//populate matrixA with random integers
+	for(int i = 0; i < size; i++){
+		for(int j = 0; j < size; j++){
+			//this isn't exactly random... find a way to make it so
+			double num = (double) (rand() % 100);
+			matrixA[i][j] = num;
+			//printf("[%d][%d]: %f ", i, j, matrixA[i][j]);
+		}
+		//printf("\n");
+	}
+
+	//set last item to null?
+	//printf("\n");
+
+	//populate matrixB with random integers
+	for(int i = 0; i < size; i++){
+		for(int j = 0; j < size; j++){
+			//this isn't exactly random... find a way to make it so
+			double num = (double) (rand() % 100);
+			matrixB[i][j] = num;
+			//printf("[%d][%d]: %f ", i, j, matrixB[i][j]);
+		}
+	}
+
+	//set last item to null?
+	//printf("\n");
+
 }
 
 /**
@@ -19,13 +73,41 @@ void mmm_init() {
  */
 void mmm_reset(double **matrix) {
 	// TODO
+	//populate specified matrix with zeroes
+	for(int i = 0; i < size; i++){
+		for(int j = 0; j < size; j++){
+			matrix[i][j] = 0.0;
+			//printf("%f ", matrix[i][j]);
+		}
+	}
+
+	//set last item to null?
 }
 
 /**
  * Free up memory allocated to all matrices
  */
 void mmm_freeup() {
-	// TODO
+	//free each row in matrix arrays
+	for(int i = 0; i < size; i++){
+    	free(matrixA[i]);
+    	matrixA[i] = NULL;
+
+		free(matrixB[i]);
+    	matrixB[i] = NULL;
+
+		free(matrixC[i]);
+    	matrixC[i] = NULL;
+ 	}
+ 	//free original matrix arrays
+ 	free(matrixA);
+	free(matrixB);
+	free(matrixC);
+
+	//remove dangling pointers
+ 	matrixA = NULL; 
+ 	matrixB = NULL;
+	matrixC = NULL;
 }
 
 /**
@@ -33,6 +115,27 @@ void mmm_freeup() {
  */
 void mmm_seq() {
 	// TODO - code to perform sequential MMM
+	for(int i = 0; i < size; i++){
+		for(int j = 0; j < size; j++){
+			matrixC[i][j] = 0.0;
+			for(int k = 0; k < size; k++){
+				double valueA = matrixA[i][k];
+				double valueB = matrixB[k][j];
+				matrixC[i][j] += (valueA * valueB);
+			}
+		}
+	}
+
+	//printf("Output:\n");
+	for(int i = 0; i < size; i++){
+		for(int j = 0; j < size; j++){
+			//printf("[%d][%d]: %f ", i, j, matrixC[i][j]);
+		}
+		//printf("\n");
+	}
+
+	//printf("\n");
+
 }
 
 /**
@@ -40,6 +143,31 @@ void mmm_seq() {
  */
 void *mmm_par(void *args) {
 	// TODO - code to perform parallel MMM
+
+	//cast arguments to be of type thread_args
+	thread_args *params = (thread_args*) args;
+
+	//get start and end positions from params
+	int start = (params->start) - 1;
+	int end = (params->end) - 1;
+	//printf("tid: %d, start: %d, end: %d\n", tid, start, end);
+
+	//do matrix multiplication, breaking up work between threads
+	//printf("Parallel work: ");
+	for(int i = start; i <= end; i++){
+		for(int j = 0; j < size; j++){
+			partialMatrix[i][j] = 0.0;
+			for(int k = 0; k < size; k++){
+				double valueA = matrixA[i][k];
+				double valueB = matrixB[k][j];
+				partialMatrix[i][j] += (valueA * valueB);
+				//printf("partial[i][j]: %f\n", partialMatrix[i][j]);
+			}
+		}
+	}
+
+	return NULL;
+
 }
 
 /**
@@ -51,5 +179,24 @@ void *mmm_par(void *args) {
  */
 double mmm_verify() {
 	// TODO
-	return -1;
+	//matrixC holds results from sequential run
+	//parCopy holds results from parallel run
+	double greatestDif = 1.0;
+
+	int verified = 0; //FALSE
+	for(int i = 0; i < size; i++){
+		for(int j = 0; j < size; j++){
+			//printf("matrixC[%d][%d]: %f\n", i, j, matrixC[i][j]);
+			//printf("parCopy[%d][%d]: %f\n\n", i, j, parCopy[i][j]);
+			greatestDif = matrixC[i][j] - parCopy[i][j];
+			if(greatestDif <= 0){
+				verified = 1; //TRUE
+			}
+			if(verified == 0){ //FALSE
+				return greatestDif;
+			}
+		}
+	}
+
+	return greatestDif;
 }
